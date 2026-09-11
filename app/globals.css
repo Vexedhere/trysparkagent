@@ -1,0 +1,9 @@
+@import 'tailwindcss';
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; background: #0a0a0a; color: #fafafa; font-family: Arial, Helvetica, sans-serif; }
+button, input { font: inherit; }
+.auth-bg { background: radial-gradient(circle at 50% 15%, rgba(99,102,241,.16), transparent 34%), radial-gradient(circle at 20% 80%, rgba(139,92,246,.08), transparent 28%), #0a0a0a; }
+.glow { box-shadow: 0 0 80px rgba(99,102,241,.10); }
