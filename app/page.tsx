@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useState } from 'react'
-import { Eye, EyeOff, Loader2, Mail, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Loader2, Mail, ShieldCheck, Sparkles, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 function GoogleIcon() {
@@ -25,164 +25,91 @@ export default function AuthPage() {
   const destination = () => `${window.location.origin}/auth/callback?next=/continue`
 
   async function oauth(provider: 'google' | 'github') {
-    setError('')
-    setMessage('')
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: destination() },
-    })
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    }
+    setError(''); setMessage(''); setLoading(true)
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: destination() } })
+    if (error) { setError(error.message); setLoading(false) }
   }
 
   async function submit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setMessage('')
-    setLoading(true)
-
+    e.preventDefault(); setError(''); setMessage(''); setLoading(true)
     if (mode === 'signin') {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError(error.message.toLowerCase().includes('invalid') ? 'Invalid email or password.' : error.message)
-      } else if (!data.user?.email_confirmed_at) {
-        setError('Please verify your email before signing in.')
-      } else {
-        window.location.href = '/continue'
-        return
-      }
+      if (error) setError(error.message.toLowerCase().includes('invalid') ? 'Invalid email or password.' : error.message)
+      else if (!data.user?.email_confirmed_at) setError('Please verify your email before signing in.')
+      else { window.location.href = '/continue'; return }
     } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: destination() },
-      })
-      if (error) {
-        setError(error.message)
-      } else if (data.user && !data.session) {
-        setMessage('Account created. Check your email to verify your account.')
-      } else {
-        window.location.href = '/continue'
-        return
-      }
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: destination() } })
+      if (error) setError(error.message)
+      else if (data.user && !data.session) setMessage('Account created. Check your email to verify your account.')
+      else { window.location.href = '/continue'; return }
     }
-
     setLoading(false)
   }
 
-  const switchMode = (next: 'signin' | 'signup') => {
-    setMode(next)
-    setError('')
-    setMessage('')
-    setPassword('')
-  }
+  const switchMode = (next: 'signin' | 'signup') => { setMode(next); setError(''); setMessage(''); setPassword('') }
 
   return (
-    <main className="auth-shell min-h-screen overflow-hidden px-4 py-6 text-white sm:px-6 lg:px-10">
-      <div className="auth-orb auth-orb-one" />
-      <div className="auth-orb auth-orb-two" />
-      <div className="auth-grid" />
+    <main className="auth-shell min-h-screen overflow-hidden px-5 text-white sm:px-8">
+      <div className="auth-orb auth-orb-one" /><div className="auth-orb auth-orb-two" /><div className="auth-grid" />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-2 py-3 sm:px-4">
+      <header className="relative z-10 mx-auto flex h-20 w-full max-w-6xl items-center justify-between">
         <a href="https://sparkagent.in.net" className="flex items-center gap-3" aria-label="SparkAgent home">
-          <span className="brand-mark"><Sparkles size={17} strokeWidth={2.5} /></span>
+          <span className="brand-mark"><Sparkles size={17} strokeWidth={2.5}/></span>
           <span className="text-[17px] font-semibold tracking-tight">SparkAgent</span>
         </a>
-        <a href="https://sparkagent.in.net" className="hidden rounded-full border border-white/10 bg-white/[0.035] px-4 py-2 text-xs font-medium text-white/65 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white sm:inline-flex">
-          Back to home
-        </a>
+        <a href="https://sparkagent.in.net" className="auth-nav-link">Back to SparkAgent</a>
       </header>
 
-      <section className="relative z-10 mx-auto grid min-h-[calc(100vh-90px)] w-full max-w-7xl items-center gap-10 px-2 py-8 sm:px-4 lg:grid-cols-[1fr_480px] lg:gap-20 lg:py-12">
-        <div className="hidden lg:block">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3.5 py-2 text-xs font-medium text-cyan-200/90 shadow-[0_0_35px_rgba(59,130,246,.10)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,.9)]" />
-            Next-Gen AI Platform
-          </div>
-          <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] tracking-[-0.045em] xl:text-7xl">
-            Your intelligent
-            <span className="auth-gradient-text block">AI workspace.</span>
-          </h1>
-          <p className="mt-7 max-w-xl text-base leading-7 text-white/48 xl:text-lg">
-            Smarter conversations, document analysis, and focused workflows — designed to keep your work moving with clarity and speed.
-          </p>
-          <div className="mt-9 grid max-w-2xl grid-cols-2 gap-3">
-            <div className="auth-feature"><span className="feature-icon"><Sparkles size={16}/></span><div><p className="font-medium">Built for momentum</p><p className="mt-1 text-xs leading-5 text-white/40">Fast answers that keep ideas flowing.</p></div></div>
-            <div className="auth-feature"><span className="feature-icon"><ShieldCheck size={16}/></span><div><p className="font-medium">Privacy focused</p><p className="mt-1 text-xs leading-5 text-white/40">Focused sessions for sensitive work.</p></div></div>
-          </div>
-        </div>
+      <section className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center pb-20 pt-10 sm:pt-14">
+        <div className="auth-badge"><span /> Next-Gen AI Platform</div>
+        <h1 className="mt-6 max-w-4xl text-center text-4xl font-semibold leading-[1.02] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
+          {mode === 'signin' ? 'Welcome back to ' : 'Start building with '}
+          <span className="auth-gradient-text">SparkAgent.</span>
+        </h1>
+        <p className="mt-6 max-w-2xl text-center text-sm leading-6 text-white/45 sm:text-base">
+          {mode === 'signin' ? 'Sign in to continue to your intelligent AI workspace.' : 'Create your account and bring smarter conversations and workflows into your day.'}
+        </p>
 
-        <div className="mx-auto w-full max-w-[480px]">
-          <section className="auth-card rounded-[28px] border border-white/[0.12] p-5 shadow-2xl shadow-blue-950/30 sm:p-7">
-            <div className="mb-7 text-center">
-              <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-200/15 bg-gradient-to-br from-cyan-300/20 via-blue-500/20 to-indigo-500/20 shadow-[0_0_35px_rgba(59,130,246,.20)]">
-                <Sparkles size={21} className="text-cyan-200" />
+        <div className="mt-10 w-full max-w-[500px]">
+          <section className="auth-card rounded-[28px] border border-white/[0.12] p-5 sm:p-7">
+            <div className="auth-card-shine" />
+            <div className="relative">
+              <div className="mb-6 flex items-center justify-between">
+                <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200/60">Account</p><p className="mt-1 text-sm text-white/45">Secure access to SparkAgent</p></div>
+                <span className="auth-secure"><ShieldCheck size={14}/> Secure</span>
               </div>
-              <h2 className="text-[28px] font-semibold tracking-[-0.035em]">{mode === 'signin' ? 'Welcome back' : 'Create your account'}</h2>
-              <p className="mt-2 text-sm leading-6 text-white/45">
-                {mode === 'signin' ? 'Sign in to continue to SparkAgent.' : 'Start building smarter with SparkAgent.'}
-              </p>
-            </div>
 
-            <div className="mb-6 grid grid-cols-2 rounded-2xl border border-white/[0.09] bg-black/20 p-1">
-              <button type="button" onClick={() => switchMode('signin')} className={`rounded-xl py-2.5 text-sm font-medium transition ${mode === 'signin' ? 'bg-white/[0.09] text-white shadow-lg shadow-black/20' : 'text-white/40 hover:text-white/75'}`}>Sign In</button>
-              <button type="button" onClick={() => switchMode('signup')} className={`rounded-xl py-2.5 text-sm font-medium transition ${mode === 'signup' ? 'bg-white/[0.09] text-white shadow-lg shadow-black/20' : 'text-white/40 hover:text-white/75'}`}>Create Account</button>
-            </div>
-
-            {(error || message) && (
-              <div role="alert" className={`mb-5 rounded-2xl border px-4 py-3 text-sm leading-5 ${error ? 'border-red-400/15 bg-red-500/[0.07] text-red-200' : 'border-cyan-300/15 bg-cyan-300/[0.06] text-cyan-100'}`}>
-                {error || message}
+              <div className="mb-6 grid grid-cols-2 rounded-2xl border border-white/[0.08] bg-black/25 p-1">
+                <button type="button" onClick={() => switchMode('signin')} className={`rounded-xl py-2.5 text-sm font-medium transition ${mode === 'signin' ? 'bg-white/[0.10] text-white shadow-lg' : 'text-white/38 hover:text-white/70'}`}>Sign In</button>
+                <button type="button" onClick={() => switchMode('signup')} className={`rounded-xl py-2.5 text-sm font-medium transition ${mode === 'signup' ? 'bg-white/[0.10] text-white shadow-lg' : 'text-white/38 hover:text-white/70'}`}>Create Account</button>
               </div>
-            )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" disabled={loading} onClick={() => oauth('google')} className="auth-provider">
-                <GoogleIcon /> Google
-              </button>
-              <button type="button" disabled={loading} onClick={() => oauth('github')} className="auth-provider">
-                <GitHubIcon /> GitHub
-              </button>
+              {(error || message) && <div role="alert" className={`mb-5 rounded-2xl border px-4 py-3 text-sm leading-5 ${error ? 'border-red-400/15 bg-red-500/[0.07] text-red-200' : 'border-cyan-300/15 bg-cyan-300/[0.06] text-cyan-100'}`}>{error || message}</div>}
+
+              <div className="grid grid-cols-2 gap-3">
+                <button type="button" disabled={loading} onClick={() => oauth('google')} className="auth-provider"><GoogleIcon/> Google</button>
+                <button type="button" disabled={loading} onClick={() => oauth('github')} className="auth-provider"><GitHubIcon/> GitHub</button>
+              </div>
+
+              <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-white/[0.08]"/><span className="text-[10px] font-semibold tracking-[0.16em] text-white/25">OR CONTINUE WITH EMAIL</span><div className="h-px flex-1 bg-white/[0.08]"/></div>
+
+              <form onSubmit={submit} className="space-y-4">
+                <label className="block"><span className="mb-2 block text-xs font-medium text-white/60">Email</span><div className="auth-input-wrap"><Mail size={17} className="auth-input-icon"/><input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="auth-input pl-11 pr-3" placeholder="you@example.com"/></div></label>
+                <label className="block"><span className="mb-2 block text-xs font-medium text-white/60">Password</span><div className="auth-input-wrap"><input required minLength={6} type={show ? 'text' : 'password'} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} className="auth-input pl-3 pr-12" placeholder="Enter your password"/><button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)} className="auth-eye">{show ? <EyeOff size={18}/> : <Eye size={18}/>}</button></div></label>
+                <button disabled={loading} className="auth-submit group">{loading && <Loader2 size={17} className="animate-spin"/>}<span>{mode === 'signin' ? 'Continue to SparkAgent' : 'Create SparkAgent Account'}</span>{!loading && <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5"/>}</button>
+              </form>
+              <p className="mt-5 text-center text-[11px] leading-5 text-white/25">{mode === 'signup' ? 'A verification email will be sent after registration.' : 'Protected authentication for your SparkAgent workspace.'}</p>
             </div>
-
-            <div className="my-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/[0.08]" />
-              <span className="text-[10px] font-semibold tracking-[0.16em] text-white/25">OR CONTINUE WITH EMAIL</span>
-              <div className="h-px flex-1 bg-white/[0.08]" />
-            </div>
-
-            <form onSubmit={submit} className="space-y-4">
-              <label className="block">
-                <span className="mb-2 block text-xs font-medium text-white/60">Email</span>
-                <div className="auth-input-wrap">
-                  <Mail size={17} className="auth-input-icon" />
-                  <input required type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="auth-input pl-11 pr-3" placeholder="you@example.com" />
-                </div>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-medium text-white/60">Password</span>
-                <div className="auth-input-wrap">
-                  <input required minLength={6} type={show ? 'text' : 'password'} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} className="auth-input pl-3 pr-12" placeholder="Enter your password" />
-                  <button type="button" aria-label={show ? 'Hide password' : 'Show password'} onClick={() => setShow(!show)} className="auth-eye">{show ? <EyeOff size={18} /> : <Eye size={18} />}</button>
-                </div>
-              </label>
-
-              <button disabled={loading} className="auth-submit group">
-                {loading && <Loader2 size={17} className="animate-spin" />}
-                <span>{mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
-                {!loading && <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />}
-              </button>
-            </form>
-
-            <p className="mt-5 text-center text-[11px] leading-5 text-white/28">
-              {mode === 'signup' ? 'A verification email will be sent after registration.' : 'Your session is protected with secure authentication.'}
-            </p>
           </section>
-          <p className="mt-5 text-center text-[11px] text-white/25">© 2026 SparkAgent · Secure authentication</p>
         </div>
+
+        <div className="mt-14 grid w-full max-w-5xl gap-4 md:grid-cols-3">
+          <article className="landing-card"><span className="landing-icon"><Zap size={17}/></span><h3>Built for momentum</h3><p>Fast, focused conversations that keep ideas moving.</p></article>
+          <article className="landing-card"><span className="landing-icon"><ShieldCheck size={17}/></span><h3>Privacy by design</h3><p>Focused sessions designed for sensitive work.</p></article>
+          <article className="landing-card"><span className="landing-icon"><Sparkles size={17}/></span><h3>Work smarter</h3><p>Bring AI into the flow of your everyday work.</p></article>
+        </div>
+
+        <p className="mt-10 text-center text-[11px] text-white/20">© 2026 SparkAgent · Intelligent AI for modern work</p>
       </section>
     </main>
   )
