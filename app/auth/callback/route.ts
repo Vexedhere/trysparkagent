@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 const APP_DESTINATION = "https://agent.sparkagent.in.net";
-const SIGN_IN_ERROR_DESTINATION = "https://try.sparkagent.net/?auth_error=1";
+const SIGN_IN_ERROR_DESTINATION = "https://try.sparkagent.in.net/?auth_error=1";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
