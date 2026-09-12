@@ -8,7 +8,7 @@ import { GoogleIcon, GitHubIcon } from "./icons";
 type Tab = "signin" | "signup";
 
 const APP_URL = "https://agent.sparkagent.in.net";
-const CALLBACK_URL = "https://try.sparkagent.net/auth/callback";
+const CALLBACK_URL = "https://try.sparkagent.in.net/auth/callback";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function friendlyAuthError(message: string): string {
