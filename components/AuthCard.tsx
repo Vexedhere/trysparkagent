@@ -8,7 +8,7 @@ import { GoogleIcon, GitHubIcon } from "./icons";
 type Tab = "signin" | "signup";
 
 const APP_URL = "https://agent.sparkagent.in.net";
-const CALLBACK_URL = "https://try.sparkagent.in.net/auth/callback";
+const CALLBACK_URL = "https://try.sparkagent.net/auth/callback";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function friendlyAuthError(message: string): string {
@@ -57,7 +57,7 @@ export function AuthCard() {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({ email: signInEmail, password: signInPassword });
       if (error) { setSignInError(friendlyAuthError(error.message)); setSignInLoading(false); return; }
-      window.location.href = APP_URL;
+      window.location.assign(APP_URL);
     } catch { setSignInError("Couldn't reach the server. Check your connection and try again."); setSignInLoading(false); }
   }
 
