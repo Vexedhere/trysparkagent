@@ -7,7 +7,7 @@ import { GoogleIcon, GitHubIcon } from "./icons";
 
 type Tab = "signin" | "signup";
 
-const APP_URL = "https://agent.sparkagent.in.net";
+const HOME_URL = "https://try.sparkagent.in.net/home";
 const CALLBACK_URL = "https://try.sparkagent.in.net/auth/callback";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -57,7 +57,7 @@ export function AuthCard() {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({ email: signInEmail, password: signInPassword });
       if (error) { setSignInError(friendlyAuthError(error.message)); setSignInLoading(false); return; }
-      window.location.assign(APP_URL);
+      window.location.assign(HOME_URL);
     } catch { setSignInError("Couldn't reach the server. Check your connection and try again."); setSignInLoading(false); }
   }
 
@@ -105,7 +105,7 @@ export function AuthCard() {
           {tab === "signin" ? (
             <form onSubmit={handleSignIn} noValidate className="flex flex-col gap-4">
               <div><label htmlFor="signin-email" className="mb-1.5 block font-body text-[13px] text-ink-muted">Email</label><input id="signin-email" type="email" autoComplete="email" value={signInEmail} onChange={(e) => setSignInEmail(e.target.value)} disabled={signInLoading} placeholder="you@company.com" className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 font-body text-[14.5px] text-ink outline-none transition-colors focus:border-spark-indigo/60 disabled:opacity-50" /></div>
-              <div><div className="mb-1.5 flex items-center justify-between"><label htmlFor="signin-password" className="block font-body text-[13px] text-ink-muted">Password</label></div><div className="relative"><input id="signin-password" type={showSignInPassword ? "text" : "password"} autoComplete="current-password" value={signInPassword} onChange={(e) => setSignInPassword(e.target.value)} disabled={signInLoading} placeholder="••••••••" className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 pr-11 font-body text-[14.5px] text-ink outline-none transition-colors focus:border-spark-indigo/60 disabled:opacity-50" /><button type="button" onClick={() => setShowSignInPassword((v) => !v)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-faint hover:text-ink-muted" aria-label={showSignInPassword ? "Hide password" : "Show password"} tabIndex={-1}>{showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
+              <div><label htmlFor="signin-password" className="mb-1.5 block font-body text-[13px] text-ink-muted">Password</label><div className="relative"><input id="signin-password" type={showSignInPassword ? "text" : "password"} autoComplete="current-password" value={signInPassword} onChange={(e) => setSignInPassword(e.target.value)} disabled={signInLoading} placeholder="••••••••" className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-2.5 pr-11 font-body text-[14.5px] text-ink outline-none transition-colors focus:border-spark-indigo/60 disabled:opacity-50" /><button type="button" onClick={() => setShowSignInPassword((v) => !v)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-faint hover:text-ink-muted" aria-label={showSignInPassword ? "Hide password" : "Show password"} tabIndex={-1}>{showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
               {signInError && <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2.5"><AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-400" /><p className="font-body text-[13px] leading-snug text-red-300">{signInError}</p></div>}
               <button type="submit" disabled={signInLoading} className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-spark-gradient py-2.5 font-body text-[14.5px] font-semibold text-white transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100">{signInLoading && <Loader2 className="h-4 w-4 animate-spin" />}{signInLoading ? "Signing in…" : "Sign in"}</button>
             </form>
