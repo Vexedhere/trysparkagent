@@ -1,9 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr";
 
 /**
- * Supabase client for use in Client Components ("use client").
- * Reads the public URL and anon key from environment variables —
- * never hardcode credentials here.
+ * Browser Supabase client. The auth cookie is scoped to the SparkAgent parent
+ * domain so an authenticated user can move between try.sparkagent.in.net and
+ * agent.sparkagent.in.net without putting tokens in URLs.
  */
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,5 +15,12 @@ export function createClient() {
     );
   }
 
-  return createBrowserClient(url, anonKey);
+  return createBrowserClient(url, anonKey, {
+    cookieOptions: {
+      domain: ".sparkagent.in.net",
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+    },
+  });
 }
