@@ -14,13 +14,8 @@ function safeNext(value: string | null): string {
   return HOME_DESTINATION;
 }
 
-function redirectWithSession(destination: string, accessToken: string, refreshToken: string) {
-  const target = new URL(destination);
-  target.hash = new URLSearchParams({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  }).toString();
-  return NextResponse.redirect(target);
+function redirectToDestination(destination: string) {
+  return NextResponse.redirect(new URL(destination));
 }
 
 export async function GET(request: NextRequest) {
@@ -33,12 +28,5 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return NextResponse.redirect(SIGN_IN_ERROR_DESTINATION);
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return NextResponse.redirect(SIGN_IN_ERROR_DESTINATION);
-
-  return redirectWithSession(
-    safeNext(requestUrl.searchParams.get("next")),
-    session.access_token,
-    session.refresh_token
-  );
+  return redirectToDestination(safeNext(requestUrl.searchParams.get("next")));
 }
