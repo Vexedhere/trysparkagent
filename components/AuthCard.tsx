@@ -80,7 +80,7 @@ export function AuthCard() {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({ email: signInEmail, password: signInPassword });
       if (error) { setSignInError(friendlyAuthError(error.message)); setSignInLoading(false); return; }
-      redirectWithSession(getNextUrl(), data.session);
+      redirectToDestination(getNextUrl());
     } catch { setSignInError("Couldn't reach the server. Check your connection and try again."); setSignInLoading(false); }
   }
 
@@ -101,17 +101,8 @@ export function AuthCard() {
     finally { setSignUpLoading(false); }
   }
 
-  function redirectWithSession(destination: string, session: { access_token: string; refresh_token: string } | null | undefined) {
-    if (!session) {
-      window.location.assign(destination);
-      return;
-    }
-    const target = new URL(destination);
-    target.hash = new URLSearchParams({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-    }).toString();
-    window.location.assign(target.toString());
+  function redirectToDestination(destination: string) {
+    window.location.assign(destination);
   }
 
 async function handleOAuth(provider: "google" | "github") {
