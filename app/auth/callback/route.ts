@@ -14,12 +14,31 @@ function safeNext(value: string | null): string {
   return HOME_DESTINATION;
 }
 
+function redirectWithSession(destination: string, accessToken: string, refreshToken: string) {
+  const target = new URL(destination);
+  target.hash = new URLSearchParams({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  }).toString();
+  return NextResponse.redirect(target);
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const supabase = await createClient();
+
   if (!code) return NextResponse.redirect(SIGN_IN_ERROR_DESTINATION);
+
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return NextResponse.redirect(SIGN_IN_ERROR_DESTINATION);
-  return NextResponse.redirect(safeNext(requestUrl.searchParams.get("next")));
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return NextResponse.redirect(SIGN_IN_ERROR_DESTINATION);
+
+  return redirectWithSession(
+    safeNext(requestUrl.searchParams.get("next")),
+    session.access_token,
+    session.refresh_token
+  );
 }
