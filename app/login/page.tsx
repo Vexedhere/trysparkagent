@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const search = useSearchParams();
-
   useEffect(() => {
-    const next = search.get("next");
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("next");
     const target = next && /^https:\/\/agent\.sparkagent\.in\.net\//.test(next)
       ? next
       : "https://agent.sparkagent.in.net/";
-    router.replace(`/?auth=signin&next=${encodeURIComponent(target)}`);
-  }, [router, search]);
+
+    window.location.replace(
+      `/?auth=signin&next=${encodeURIComponent(target)}`
+    );
+  }, []);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#050507] px-6 text-white">
