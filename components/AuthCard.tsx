@@ -78,9 +78,9 @@ export function AuthCard() {
     setSignInLoading(true);
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email: signInEmail, password: signInPassword });
+      const { data, error } = await supabase.auth.signInWithPassword({ email: signInEmail, password: signInPassword });
       if (error) { setSignInError(friendlyAuthError(error.message)); setSignInLoading(false); return; }
-      window.location.assign(getNextUrl());
+      redirectWithSession(getNextUrl(), data.session);
     } catch { setSignInError("Couldn't reach the server. Check your connection and try again."); setSignInLoading(false); }
   }
 
@@ -101,12 +101,28 @@ export function AuthCard() {
     finally { setSignUpLoading(false); }
   }
 
-  async function handleOAuth(provider: "google" | "github") {
+  function redirectWithSession(destination: string, session: { access_token: string; refresh_token: string } | null | undefined) {
+    if (!session) {
+      window.location.assign(destination);
+      return;
+    }
+    const target = new URL(destination);
+    target.hash = new URLSearchParams({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    }).toString();
+    window.location.assign(target.toString());
+  }
+
+async function handleOAuth(provider: "google" | "github") {
     setOauthLoading(provider);
     try {
       const supabase = createClient();
       const redirectTo = `${CALLBACK_URL}?next=${encodeURIComponent(getNextUrl())}`;
-      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+      const options = provider === "google"
+        ? { redirectTo, scopes: "openid email profile" }
+        : { redirectTo, scopes: "read:user user:email" };
+      const { error } = await supabase.auth.signInWithOAuth({ provider, options });
       if (error) {
         setOauthLoading(null);
         if (tab === "signin") setSignInError(friendlyAuthError(error.message));
