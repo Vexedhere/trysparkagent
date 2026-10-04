@@ -5,12 +5,9 @@ const HOME_DESTINATION = "https://agent.sparkagent.in.net/";
 const SIGN_IN_ERROR_DESTINATION = "https://try.sparkagent.in.net/?auth_error=1";
 const ALLOWED_HOSTS = ["try.sparkagent.in.net", "agent.sparkagent.in.net", "tiers.sparkagent.in.net"];
 
-function safeNext(value: string | null): string {
-  if (!value) return HOME_DESTINATION;
-  try {
-    const url = new URL(value);
-    if (url.protocol === "https:" && ALLOWED_HOSTS.includes(url.hostname)) return url.toString();
-  } catch {}
+function safeNext(_value: string | null): string {
+  // Authentication now always lands in the real SparkAgent workspace.
+  // Do not send users back to the legacy /home selection screen.
   return HOME_DESTINATION;
 }
 
