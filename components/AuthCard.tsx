@@ -96,8 +96,20 @@ export function AuthCard() {
     finally { setSignUpLoading(false); }
   }
 
-  function redirectToDestination(destination: string) {
-    window.location.assign(destination);
+  async function redirectToDestination(destination: string) {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+    if (!session?.access_token || !session?.refresh_token) {
+      window.location.assign(destination);
+      return;
+    }
+    const handoff = new URL(destination);
+    handoff.hash = new URLSearchParams({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    }).toString();
+    window.location.assign(handoff.toString());
   }
 
 async function handleOAuth(provider: "google" | "github") {
