@@ -12,13 +12,8 @@ const ALLOWED_HOSTS = ["try.sparkagent.in.net", "agent.sparkagent.in.net", "tier
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function getNextUrl(): string {
-  if (typeof window === "undefined") return DEFAULT_HOME_URL;
-  const next = new URLSearchParams(window.location.search).get("next");
-  if (!next) return DEFAULT_HOME_URL;
-  try {
-    const url = new URL(next);
-    if (url.protocol === "https:" && ALLOWED_HOSTS.includes(url.hostname)) return url.toString();
-  } catch {}
+  // Successful authentication always opens the real SparkAgent workspace.
+  // The old /home selection screen is no longer part of the login flow.
   return DEFAULT_HOME_URL;
 }
 
