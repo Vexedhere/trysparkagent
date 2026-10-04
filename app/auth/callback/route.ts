@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const HOME_DESTINATION = "https://try.sparkagent.in.net/home";
+const HOME_DESTINATION = "https://agent.sparkagent.in.net/";
 const SIGN_IN_ERROR_DESTINATION = "https://try.sparkagent.in.net/?auth_error=1";
 const ALLOWED_HOSTS = ["try.sparkagent.in.net", "agent.sparkagent.in.net", "tiers.sparkagent.in.net"];
 
