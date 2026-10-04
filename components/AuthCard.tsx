@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { GoogleIcon, GitHubIcon } from "./icons";
 
 type Tab = "signin" | "signup";
-const DEFAULT_HOME_URL = "https://try.sparkagent.in.net/home";
+const DEFAULT_HOME_URL = "https://agent.sparkagent.in.net/";
 const CALLBACK_URL = "https://try.sparkagent.in.net/auth/callback";
 const ALLOWED_HOSTS = ["try.sparkagent.in.net", "agent.sparkagent.in.net", "tiers.sparkagent.in.net"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
