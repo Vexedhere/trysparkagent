@@ -17,6 +17,31 @@ export async function OPTIONS(request: NextRequest) {
   return cors(new NextResponse(null, { status: 204 }));
 }
 
+export async function POST(request: NextRequest) {
+  if (request.headers.get("origin") !== "https://try.sparkagent.in.net") {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const access_token = typeof body?.access_token === "string" ? body.access_token : "";
+    const refresh_token = typeof body?.refresh_token === "string" ? body.refresh_token : "";
+    if (!access_token || !refresh_token) {
+      return cors(NextResponse.json({ authenticated: false }, { status: 400 }));
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+    if (error) {
+      return cors(NextResponse.json({ authenticated: false }, { status: 401 }));
+    }
+
+    return cors(NextResponse.json({ authenticated: true }));
+  } catch {
+    return cors(NextResponse.json({ authenticated: false }, { status: 400 }));
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (request.headers.get("origin") !== ALLOWED_ORIGIN) {
     return new NextResponse("Forbidden", { status: 403 });
