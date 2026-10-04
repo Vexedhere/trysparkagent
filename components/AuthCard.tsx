@@ -100,16 +100,22 @@ export function AuthCard() {
     const supabase = createClient();
     const { data } = await supabase.auth.getSession();
     const session = data.session;
-    if (!session?.access_token || !session?.refresh_token) {
-      window.location.assign(destination);
-      return;
+
+    if (session?.access_token && session?.refresh_token) {
+      try {
+        await fetch("/api/session", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          }),
+        });
+      } catch {}
     }
-    const handoff = new URL(destination);
-    handoff.hash = new URLSearchParams({
-      access_token: session.access_token,
-      refresh_token: session.refresh_token,
-    }).toString();
-    window.location.assign(handoff.toString());
+
+    window.location.assign(destination);
   }
 
 async function handleOAuth(provider: "google" | "github") {
