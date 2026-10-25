@@ -7,6 +7,8 @@ const ALLOWED_ORIGIN = "https://agent.sparkagent.in.net";
 const encoder = new TextEncoder();
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
 function cors(headers: Record<string, string> = {}) {
   return {
     ...headers,
@@ -15,6 +17,18 @@ function cors(headers: Record<string, string> = {}) {
     "Vary": "Origin",
     "X-Content-Type-Options": "nosniff",
   };
+}
+
+function jsonError(message: string, status: number, extra: Record<string, string> = {}) {
+  return Response.json({ error: message }, { status, headers: cors(extra) });
+}
+
+function detectMode(messages: ChatMessage[], requestedMode: unknown): "coding" | "general" {
+  if (requestedMode === "coding" || requestedMode === "general") return requestedMode;
+  const last = [...messages].reverse().find((m) => m.role === "user")?.content || "";
+  return /\b(code|coding|program|programming|debug|bug|stack trace|typescript|javascript|python|java|rust|golang|sql|html|css|react|next\.js|node\.js|api|function|class|component|compile|compiler|refactor|repository|repo|github|pull request|unit test|test suite|terminal|command line|algorithm|database schema|supabase|deployment|deploy|error log)\b/i.test(last)
+    ? "coding"
+    : "general";
 }
 
 export async function OPTIONS(request: NextRequest) {
@@ -28,14 +42,16 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   if (request.headers.get("origin") !== ALLOWED_ORIGIN) {
-    return Response.json({ error: "This app origin is not allowed." }, { status: 403 });
+    return jsonError("This app origin is not allowed.", 403);
   }
 
   const now = Date.now();
   const ip = (request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim().slice(0, 80);
   const bucket = rateBuckets.get(ip);
   if (bucket && bucket.resetAt > now && bucket.count >= 18) {
-    return Response.json({ error: "You're sending messages too quickly. Please wait a minute and try again." }, { status: 429, headers: cors({ "Retry-After": String(Math.ceil((bucket.resetAt - now) / 1000)) }) });
+    return jsonError("You're sending messages too quickly. Please wait a minute and try again.", 429, {
+      "Retry-After": String(Math.ceil((bucket.resetAt - now) / 1000)),
+    });
   }
   if (!bucket || bucket.resetAt <= now) rateBuckets.set(ip, { count: 1, resetAt: now + 60_000 });
   else bucket.count += 1;
@@ -43,63 +59,78 @@ export async function POST(request: NextRequest) {
     for (const [key, value] of rateBuckets) if (value.resetAt <= now) rateBuckets.delete(key);
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    return Response.json({ error: "The AI service is not configured yet. Add GEMINI_API_KEY to the server environment and redeploy." }, { status: 503, headers: cors() });
+    return jsonError("The AI service is not configured yet. Add OPENROUTER_API_KEY to the server environment and redeploy.", 503);
   }
 
-  let body: { messages?: unknown };
+  let body: { messages?: unknown; mode?: unknown };
   try { body = await request.json(); }
-  catch { return Response.json({ error: "The request body must be valid JSON." }, { status: 400, headers: cors() }); }
+  catch { return jsonError("The request body must be valid JSON.", 400); }
 
-  if (!Array.isArray(body.messages)) {
-    return Response.json({ error: "Send a list of chat messages." }, { status: 400, headers: cors() });
-  }
+  if (!Array.isArray(body.messages)) return jsonError("Send a list of chat messages.", 400);
 
-  const messages = body.messages
+  const messages: ChatMessage[] = body.messages
     .filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
     .slice(-20)
-    .map((m: any) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content.trim().slice(0, 10000) }] }))
-    .filter(m => m.parts[0].text.length > 0);
+    .map((m: any) => ({ role: m.role, content: m.content.trim().slice(0, 10000) }))
+    .filter((m: ChatMessage) => m.content.length > 0);
 
-  if (!messages.length || !messages.some(m => m.role === "user")) {
-    return Response.json({ error: "Write a message before sending." }, { status: 400, headers: cors() });
+  if (!messages.length || !messages.some((m) => m.role === "user")) {
+    return jsonError("Write a message before sending.", 400);
   }
-  if (messages.reduce((n, m) => n + m.parts[0].text.length, 0) > 60000) {
-    return Response.json({ error: "This conversation is too long. Start a new chat and try again." }, { status: 413, headers: cors() });
+  if (messages.reduce((n, m) => n + m.content.length, 0) > 60000) {
+    return jsonError("This conversation is too long. Start a new chat and try again.", 413);
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const mode = detectMode(messages, body.mode);
+  const model = mode === "coding"
+    ? (process.env.OPENROUTER_CLAUDE_MODEL || "anthropic/claude-sonnet-4")
+    : (process.env.OPENROUTER_GEMINI_MODEL || "google/gemini-2.5-flash");
+  const systemPrompt = mode === "coding"
+    ? "You are SparkAgent, an expert software engineer powered by Claude. Help with programming, debugging, architecture, code review, tests, and deployment. Give correct, complete, maintainable solutions. When asked for code, provide runnable code and clearly identify filenames and setup steps when relevant. Do not claim you edited a repository, ran code, or deployed anything unless a tool actually did so. Explain assumptions and security implications. Use Markdown and fenced code blocks."
+    : "You are SparkAgent, a quick, intelligent general-purpose AI assistant powered by Gemini. Help with everyday questions, learning, writing, planning, analysis, creativity, and problem solving. Be direct, accurate, thoughtful, and friendly. Explain complex topics clearly without unnecessary verbosity. Do not claim to browse, run code, or complete external actions unless you actually did. Use Markdown when helpful.";
+
   let upstream: Response;
   try {
-    upstream = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: "You are SparkAgent, a capable and practical AI agent. Help users reason, write, learn, plan, design, and build software. Be accurate, direct, friendly, and useful. Never claim you browsed, ran code, changed files, or completed an external action unless you actually did. Explain limitations honestly. Use clear Markdown and ask follow-up questions only when needed." }] },
-          contents: messages,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
-        }),
-        cache: "no-store",
-        signal: request.signal
-      }
-    );
+    upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://agent.sparkagent.in.net",
+        "X-Title": process.env.OPENROUTER_APP_NAME || "SparkAgent",
+      },
+      body: JSON.stringify({
+        model,
+        stream: true,
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
+        temperature: mode === "coding" ? 0.25 : 0.65,
+        max_tokens: 4096,
+      }),
+      cache: "no-store",
+      signal: request.signal,
+    });
   } catch {
-    return Response.json({ error: "Couldn't reach the AI provider. Please check your connection and retry." }, { status: 502, headers: cors() });
+    return jsonError("Couldn't reach OpenRouter. Check the connection and try again.", 502);
   }
 
   if (!upstream.ok || !upstream.body) {
     let providerMessage = "";
-    try { const data = await upstream.json(); providerMessage = data?.error?.message || ""; } catch {}
-    const status = upstream.status === 429 ? 429 : 502;
-    const message = upstream.status === 429
-      ? "The AI provider is busy or the quota has been reached. Wait a moment and retry."
-      : (upstream.status === 400 || upstream.status === 403)
-        ? "The AI provider rejected the request. Check the server's GEMINI_API_KEY and GEMINI_MODEL settings."
-        : providerMessage || "The AI provider is temporarily unavailable.";
-    return Response.json({ error: message }, { status, headers: cors() });
+    try {
+      const data = await upstream.json();
+      providerMessage = typeof data?.error?.message === "string" ? data.error.message : "";
+    } catch {}
+    if (upstream.status === 401 || upstream.status === 403) {
+      return jsonError("OpenRouter rejected the API key. Check OPENROUTER_API_KEY in your server environment.", 502);
+    }
+    if (upstream.status === 402) {
+      return jsonError("OpenRouter needs available credits for this model. Check your account balance and model access.", 402);
+    }
+    if (upstream.status === 429) {
+      return jsonError("OpenRouter is rate-limiting requests. Wait a moment and retry.", 429);
+    }
+    return jsonError(providerMessage || "The selected AI model is temporarily unavailable.", 502);
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -120,24 +151,43 @@ export async function POST(request: NextRequest) {
             if (!raw || raw === "[DONE]") continue;
             try {
               const data = JSON.parse(raw);
-              const text = (data.candidates?.[0]?.content?.parts || []).map((part: { text?: string }) => part.text || "").join("");
+              const delta = data.choices?.[0]?.delta?.content;
+              const text = typeof delta === "string"
+                ? delta
+                : Array.isArray(delta)
+                  ? delta.map((part: { text?: string }) => part?.text || "").join("")
+                  : "";
               if (text) controller.enqueue(encoder.encode(text));
             } catch {}
           }
         }
+        if (buffer.startsWith("data:")) {
+          const raw = buffer.slice(5).trim();
+          if (raw && raw !== "[DONE]") {
+            try {
+              const data = JSON.parse(raw);
+              const delta = data.choices?.[0]?.delta?.content;
+              if (typeof delta === "string" && delta) controller.enqueue(encoder.encode(delta));
+            } catch {}
+          }
+        }
         controller.close();
-      } catch (error) {
-        controller.error(error);
-      } finally { reader.releaseLock(); }
+      } catch {
+        try { controller.close(); } catch {}
+      } finally {
+        reader.releaseLock();
+      }
     },
-    cancel() { void upstream.body?.cancel(); }
+    cancel() { void upstream.body?.cancel(); },
   });
 
   return new Response(stream, {
     headers: cors({
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
-      "X-Accel-Buffering": "no"
-    })
+      "X-Accel-Buffering": "no",
+      "X-SparkAgent-Mode": mode,
+      "X-SparkAgent-Model": model,
+    }),
   });
 }
