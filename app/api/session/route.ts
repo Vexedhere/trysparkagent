@@ -48,16 +48,21 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.getSession();
-
-  if (error || !data.session) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
     return cors(NextResponse.json({ authenticated: false }, { status: 401 }));
   }
 
+  const user = userData.user;
   return cors(NextResponse.json({
     authenticated: true,
-    access_token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_at: data.session.expires_at ?? null
+    user: {
+      id: user.id,
+      email: user.email ?? null,
+      username: user.user_metadata?.user_name ?? user.user_metadata?.preferred_username ?? user.user_metadata?.full_name ?? user.user_metadata?.name ?? user.email?.split("@")[0] ?? "Guest",
+      full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
+      avatar_url: user.user_metadata?.avatar_url ?? user.user_metadata?.picture ?? null,
+      provider: user.app_metadata?.provider ?? null
+    }
   }));
 }
