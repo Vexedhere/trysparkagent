@@ -66,3 +66,17 @@ export async function GET(request: NextRequest) {
     }
   }));
 }
+
+
+export async function DELETE(request: NextRequest) {
+  if (request.headers.get("origin") !== ALLOWED_ORIGIN) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+    return cors(NextResponse.json({ authenticated: false }));
+  } catch {
+    return cors(NextResponse.json({ authenticated: false }, { status: 500 }));
+  }
+}
