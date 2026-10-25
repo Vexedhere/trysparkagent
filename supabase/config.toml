@@ -1,0 +1,2 @@
+[functions.sparkagent-chat]
+verify_jwt = false
