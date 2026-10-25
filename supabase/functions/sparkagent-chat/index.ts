@@ -105,6 +105,13 @@ Deno.serve(async (request: Request) => {
     if (freeBuildBuckets.size > 5000) for (const [key, value] of freeBuildBuckets) if (value.day !== day) freeBuildBuckets.delete(key);
   }
 
+  if (mode === "coding") {
+    const day = new Date().toISOString().slice(0, 10);
+    const current = freeBuildBuckets.get(ip);
+    if (current && current.day === day && current.count >= 3) return error("You have used your 3 free Forge builds for today. Regular chat is still available; builds reset at 00:00 UTC.", 429);
+    if (!current || current.day !== day) freeBuildBuckets.set(ip, { day, count: 1 }); else current.count++;
+    if (freeBuildBuckets.size > 5000) for (const [key, value] of freeBuildBuckets) if (value.day !== day) freeBuildBuckets.delete(key);
+  }
   const model = modelFor(mode);
   let upstream: Response;
   try {
