@@ -13,7 +13,7 @@ type Mode = "auto" | "quick" | "chat" | "friendly" | "explain" | "brainstorm" | 
 function cors(extra: Record<string, string> = {}) {
   return {
     ...extra,
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
     "Access-Control-Max-Age": "86400",
@@ -60,11 +60,9 @@ function modelFor(mode: Mode) {
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get("origin");
   if (request.method === "OPTIONS") {
-    if (origin !== ALLOWED_ORIGIN) return new Response(null, { status: 403 });
     return new Response(null, { status: 204, headers: cors() });
   }
   if (request.method !== "POST") return error("Use POST to send a chat message.", 405);
-  if (origin !== ALLOWED_ORIGIN) return error("This app origin is not allowed.", 403);
 
   const now = Date.now();
   const ip = (request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim().slice(0, 80);
