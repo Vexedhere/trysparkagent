@@ -3,7 +3,8 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const ALLOWED_ORIGIN = "https://agent.sparkagent.in.net";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const lockedModes = new Set(["coding", "writer", "research", "deep", "strategist", "creative"]);
+const lockedModes = new Set(["writer", "research", "deep", "strategist", "creative"]);
+const freeBuildBuckets = new Map<string, { day: string; count: number }>();
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -34,15 +35,15 @@ function detectMode(messages: Message[], requested: unknown): Mode {
 }
 function promptFor(mode: Mode) {
   const prompts: Record<Mode, string> = {
-    auto: "You are SparkAgent, a capable general-purpose AI assistant. Give useful everyday help, think clearly, and explain complex topics in practical language. Do not claim to use tools you do not have.",
-    quick: "You are SparkAgent in Quick Reply mode. Answer directly, put the main answer first, and keep simple questions concise. Expand when needed for correctness.",
-    study: "You are SparkAgent in Study Room mode. Teach patiently with clear explanations, examples, checkpoints, and hints that help the learner understand rather than merely memorize.",
-    coding: "You are SparkAgent in Build Lab mode. Help with programming, debugging, architecture, code review, tests, and deployment. Provide complete, maintainable code with filenames and setup steps when relevant. Never claim you edited or deployed anything unless you actually did.",
-    writer: "You are SparkAgent in Writer's Desk mode. Help create polished, original drafts, improve clarity, adapt tone, and explain important edits when useful.",
-    research: "You are SparkAgent in Research Desk mode. Structure the problem, distinguish established facts from uncertainty, and never invent citations or claim to have browsed.",
-    deep: "You are SparkAgent in Deep Think mode. Work carefully through complex trade-offs, surface assumptions and alternatives, and deliver a clear, well-structured conclusion.",
-    strategist: "You are SparkAgent in Strategy Studio mode. Help prioritize goals, compare options, assess risks, and turn ideas into practical plans with milestones.",
-    creative: "You are SparkAgent in Creative Studio mode. Generate fresh ideas, story concepts, naming directions, and creative approaches while respecting the user's constraints."
+    auto: "You are SparkAgent Spark 2.1 Swift, a capable general-purpose AI assistant. Give useful everyday help, think clearly, and explain complex topics in practical language. Do not claim to use tools you do not have.",
+    quick: "You are SparkAgent Spark 2.1 Snap. Answer directly, put the main answer first, and keep simple questions concise. Expand when needed for correctness.",
+    study: "You are SparkAgent Spark 2.2 Scholaris. Teach patiently with clear explanations, examples, checkpoints, and hints that help the learner understand rather than merely memorize.",
+    coding: "You are SparkAgent Spark 2.4 Forge. Help with programming, debugging, architecture, code review, tests, and deployment. Provide complete, maintainable code with filenames and setup steps when relevant. Never claim you edited or deployed anything unless you actually did.",
+    writer: "You are SparkAgent Spark 2.4 Quill. Help create polished, original drafts, improve clarity, adapt tone, and explain important edits when useful.",
+    research: "You are SparkAgent Spark 3.0 Atlas. Structure the problem, distinguish established facts from uncertainty, and never invent citations or claim to have browsed.",
+    deep: "You are SparkAgent Spark 3.0 Synapse. Work carefully through complex trade-offs, surface assumptions and alternatives, and deliver a clear, well-structured conclusion.",
+    strategist: "You are SparkAgent Spark 3.2 Parallax. Help prioritize goals, compare options, assess risks, and turn ideas into practical plans with milestones.",
+    creative: "You are SparkAgent Spark 3.2 Dreamweave. Generate fresh ideas, story concepts, naming directions, and creative approaches while respecting the user's constraints."
   };
   return prompts[mode];
 }
@@ -64,7 +65,7 @@ Deno.serve(async (request: Request) => {
   const now = Date.now();
   const ip = (request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim().slice(0, 80);
   const bucket = rateBuckets.get(ip);
-  if (bucket && bucket.resetAt > now && bucket.count >= 18) return error("You're sending messages too quickly. Please wait a minute and try again.", 429);
+  if (bucket && bucket.resetAt > now && bucket.count >= 60) return error("You're sending messages too quickly. Please wait a minute and try again.", 429);
   if (!bucket || bucket.resetAt <= now) rateBuckets.set(ip, { count: 1, resetAt: now + 60_000 });
   else bucket.count++;
   if (rateBuckets.size > 5000) for (const [key, value] of rateBuckets) if (value.resetAt <= now) rateBuckets.delete(key);
@@ -93,6 +94,17 @@ Deno.serve(async (request: Request) => {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!apiKey) return error("The AI service is not configured. Add OPENROUTER_API_KEY to Supabase Edge Function secrets.", 503);
 
+  if (mode === "coding") {
+    const day = new Date().toISOString().slice(0, 10);
+    const current = freeBuildBuckets.get(ip);
+    if (current && current.day === day && current.count >= 3) {
+      return error("You have used your 3 free Forge builds for today. Regular chat is still available; Forge builds reset at 00:00 UTC.", 429);
+    }
+    if (!current || current.day !== day) freeBuildBuckets.set(ip, { day, count: 1 });
+    else current.count++;
+    if (freeBuildBuckets.size > 5000) for (const [key, value] of freeBuildBuckets) if (value.day !== day) freeBuildBuckets.delete(key);
+  }
+
   const model = modelFor(mode);
   let upstream: Response;
   try {
@@ -106,7 +118,7 @@ Deno.serve(async (request: Request) => {
       },
       body: JSON.stringify({
         model, stream: true, messages: [{ role: "system", content: promptFor(mode) }, ...messages],
-        temperature: mode === "study" ? 0.45 : 0.65, max_tokens: 4096,
+        temperature: mode === "study" ? 0.45 : 0.65, max_tokens: mode === "strategist" || mode === "creative" || mode === "deep" ? 8192 : 4096,
       }),
       signal: AbortSignal.timeout(120_000),
     });
