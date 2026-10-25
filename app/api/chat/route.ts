@@ -23,12 +23,18 @@ function jsonError(message: string, status: number, extra: Record<string, string
   return Response.json({ error: message }, { status, headers: cors(extra) });
 }
 
-function detectMode(messages: ChatMessage[], requestedMode: unknown): "coding" | "general" {
-  if (requestedMode === "coding" || requestedMode === "general") return requestedMode;
+function detectMode(messages: ChatMessage[], requestedMode: unknown): "coding" | "general" | "quick" {
+  if (requestedMode === "coding" || requestedMode === "general" || requestedMode === "quick") return requestedMode;
   const last = [...messages].reverse().find((m) => m.role === "user")?.content || "";
-  return /\b(code|coding|program|programming|debug|bug|stack trace|typescript|javascript|python|java|rust|golang|sql|html|css|react|next\.js|node\.js|api|function|class|component|compile|compiler|refactor|repository|repo|github|pull request|unit test|test suite|terminal|command line|algorithm|database schema|supabase|deployment|deploy|error log|website|web app|webpage|frontend|backend|script|plugin|discord bot|minecraft plugin|landing page)\b/i.test(last)
-    ? "coding"
-    : "general";
+  if (/\b(code|coding|program|programming|debug|bug|stack trace|typescript|javascript|python|java|rust|golang|sql|html|css|react|next\.js|node\.js|api|function|class|component|compile|compiler|refactor|repository|repo|github|pull request|unit test|test suite|terminal|command line|algorithm|database schema|supabase|deployment|deploy|error log|website|web app|webpage|frontend|backend|script|plugin|discord bot|minecraft plugin|landing page)\b/i.test(last)) {
+    return "coding";
+  }
+  if (/\b(quick|brief|short answer|in one sentence|simple answer|just tell me|tl;dr|summarize in|fast answer)\b/i.test(last) ||
+      /^(what is|who is|when is|where is|define|meaning of|translate|convert|how much|how many)\b/i.test(last.trim()) ||
+      last.trim().length < 55) {
+    return "quick";
+  }
+  return "general";
 }
 
 export async function OPTIONS(request: NextRequest) {
@@ -86,10 +92,14 @@ export async function POST(request: NextRequest) {
   const mode = detectMode(messages, body.mode);
   const model = mode === "coding"
     ? (process.env.OPENROUTER_CLAUDE_MODEL || "anthropic/claude-sonnet-4")
-    : (process.env.OPENROUTER_GEMINI_MODEL || "google/gemini-2.5-flash");
+    : mode === "quick"
+      ? (process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-4o-mini")
+      : (process.env.OPENROUTER_GEMINI_MODEL || "google/gemini-2.5-flash");
   const systemPrompt = mode === "coding"
     ? "You are SparkAgent, an expert software engineer powered by Claude. Help with programming, debugging, architecture, code review, tests, and deployment. Give correct, complete, maintainable solutions. When asked for code, provide runnable code and clearly identify filenames and setup steps when relevant. Do not claim you edited a repository, ran code, or deployed anything unless a tool actually did so. Explain assumptions and security implications. Use Markdown and fenced code blocks."
-    : "You are SparkAgent, a quick, intelligent general-purpose AI assistant powered by Gemini. Help with everyday questions, learning, writing, planning, analysis, creativity, and problem solving. Be direct, accurate, thoughtful, and friendly. Explain complex topics clearly without unnecessary verbosity. Do not claim to browse, run code, or complete external actions unless you actually did. Use Markdown when helpful.";
+    : mode === "quick"
+      ? "You are SparkAgent, powered by an OpenAI GPT model optimized for fast, clear answers. Respond directly and intelligently, prioritize the answer first, keep simple questions concise, and expand when the user asks for detail. Do not claim to browse, run code, or complete external actions unless you actually did."
+      : "You are SparkAgent, a general-purpose AI assistant powered by Gemini. Help with everyday questions, learning, writing, planning, analysis, creativity, and problem solving. Be accurate, thoughtful, and friendly. Explain complex topics clearly without unnecessary verbosity. Do not claim to browse, run code, or complete external actions unless you actually did. Use Markdown when helpful.";
 
   let upstream: Response;
   try {
