@@ -8,7 +8,7 @@ const freeBuildBuckets = new Map<string, { day: string; count: number }>();
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
 type Message = { role: "user" | "assistant"; content: string };
-type Mode = "auto" | "quick" | "study" | "coding" | "writer" | "research" | "deep" | "strategist" | "creative";
+type Mode = "auto" | "quick" | "chat" | "friendly" | "explain" | "brainstorm" | "study" | "coding" | "writer" | "research" | "deep" | "strategist" | "creative";
 
 function cors(extra: Record<string, string> = {}) {
   return {
@@ -27,7 +27,7 @@ function error(message: string, status: number) {
   });
 }
 function detectMode(messages: Message[], requested: unknown): Mode {
-  const valid: Mode[] = ["auto", "quick", "study", "coding", "writer", "research", "deep", "strategist", "creative"];
+  const valid: Mode[] = ["auto", "quick", "chat", "friendly", "explain", "brainstorm", "study", "coding", "writer", "research", "deep", "strategist", "creative"];
   if (typeof requested === "string" && valid.includes(requested as Mode)) return requested as Mode;
   const last = [...messages].reverse().find((m) => m.role === "user")?.content || "";
   if (/^(what is|who is|when is|where is|define|meaning of|translate|convert|how much|how many)\b/i.test(last.trim()) || last.trim().length < 55) return "quick";
@@ -35,8 +35,12 @@ function detectMode(messages: Message[], requested: unknown): Mode {
 }
 function promptFor(mode: Mode) {
   const prompts: Record<Mode, string> = {
-    auto: "You are SparkAgent Spark 2.1 Swift, a capable general-purpose AI assistant. Give useful everyday help, think clearly, and explain complex topics in practical language. Do not claim to use tools you do not have.",
+    auto: "You are SparkAgent Spark 2.1 Swift, a capable general-purpose AI assistant. Be useful, thoughtful, clear and naturally conversational. Adapt length to the task, ask a brief clarifying question only when essential, and never claim tools or actions you do not have.",
     quick: "You are SparkAgent Spark 2.1 Snap. Answer directly, put the main answer first, and keep simple questions concise. Expand when needed for correctness.",
+    chat: "You are SparkAgent Spark 2.1 Orbit, a general conversation companion. Talk naturally about everyday life, interests, hobbies, ideas, entertainment and questions. Be relaxed and engaging without pretending to be human. Follow the user's conversational lead and avoid turning every reply into a long guide.",
+    friendly: "You are SparkAgent Spark 2.1 Cozy. Respond warmly, casually and respectfully, like a helpful conversation partner. Be empathetic without overdoing praise, don't force advice when the user just wants to chat, and keep the flow natural.",
+    explain: "You are SparkAgent Spark 2.2 Clearview. Explain any topic in plain language, define unfamiliar terms, use concrete examples and analogies, and scale detail to the user's level. Do not talk down to the user.",
+    brainstorm: "You are SparkAgent Spark 2.2 IdeaFlow. Brainstorm collaboratively, produce varied and specific ideas, explain the strongest options briefly, and help the user build on an idea instead of repeating generic suggestions.",
     study: "You are SparkAgent Spark 2.2 Scholaris. Teach patiently with clear explanations, examples, checkpoints, and hints that help the learner understand rather than merely memorize.",
     coding: "You are SparkAgent Spark 2.4 Forge. Help with programming, debugging, architecture, code review, tests, and deployment. Provide complete, maintainable code with filenames and setup steps when relevant. Never claim you edited or deployed anything unless you actually did.",
     writer: "You are SparkAgent Spark 2.4 Quill. Help create polished, original drafts, improve clarity, adapt tone, and explain important edits when useful.",
@@ -48,7 +52,7 @@ function promptFor(mode: Mode) {
   return prompts[mode];
 }
 function modelFor(mode: Mode) {
-  if (mode === "quick") return Deno.env.get("OPENROUTER_OPENAI_MODEL") || "openai/gpt-4o-mini";
+  if (mode === "quick" || mode === "chat" || mode === "friendly" || mode === "explain" || mode === "brainstorm") return Deno.env.get("OPENROUTER_OPENAI_MODEL") || "openai/gpt-4o-mini";
   if (mode === "coding" || mode === "deep" || mode === "research") return Deno.env.get("OPENROUTER_CLAUDE_MODEL") || "anthropic/claude-sonnet-4";
   return Deno.env.get("OPENROUTER_GEMINI_MODEL") || "google/gemini-2.5-flash";
 }
@@ -98,18 +102,10 @@ Deno.serve(async (request: Request) => {
     const day = new Date().toISOString().slice(0, 10);
     const current = freeBuildBuckets.get(ip);
     if (current && current.day === day && current.count >= 3) {
-      return error("You have used your 3 free Forge builds for today. Regular chat is still available; Forge builds reset at 00:00 UTC.", 429);
+      return error("You've used the 3 free Forge builds available today. Regular chat is still available; Forge builds reset at 00:00 UTC.", 429);
     }
     if (!current || current.day !== day) freeBuildBuckets.set(ip, { day, count: 1 });
     else current.count++;
-    if (freeBuildBuckets.size > 5000) for (const [key, value] of freeBuildBuckets) if (value.day !== day) freeBuildBuckets.delete(key);
-  }
-
-  if (mode === "coding") {
-    const day = new Date().toISOString().slice(0, 10);
-    const current = freeBuildBuckets.get(ip);
-    if (current && current.day === day && current.count >= 3) return error("You have used your 3 free Forge builds for today. Regular chat is still available; builds reset at 00:00 UTC.", 429);
-    if (!current || current.day !== day) freeBuildBuckets.set(ip, { day, count: 1 }); else current.count++;
     if (freeBuildBuckets.size > 5000) for (const [key, value] of freeBuildBuckets) if (value.day !== day) freeBuildBuckets.delete(key);
   }
   const model = modelFor(mode);
