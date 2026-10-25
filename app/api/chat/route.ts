@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 
 const ALLOWED_ORIGIN = "https://agent.sparkagent.in.net";
 const encoder = new TextEncoder();
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
 function cors(headers: HeadersInit = {}) {
   return {
@@ -28,6 +29,18 @@ export async function OPTIONS(request: NextRequest) {
 export async function POST(request: NextRequest) {
   if (request.headers.get("origin") !== ALLOWED_ORIGIN) {
     return Response.json({ error: "This app origin is not allowed." }, { status: 403 });
+  }
+
+  const now = Date.now();
+  const ip = (request.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim().slice(0, 80);
+  const bucket = rateBuckets.get(ip);
+  if (bucket && bucket.resetAt > now && bucket.count >= 18) {
+    return Response.json({ error: "You're sending messages too quickly. Please wait a minute and try again." }, { status: 429, headers: cors({ "Retry-After": String(Math.ceil((bucket.resetAt - now) / 1000)) }) });
+  }
+  if (!bucket || bucket.resetAt <= now) rateBuckets.set(ip, { count: 1, resetAt: now + 60_000 });
+  else bucket.count += 1;
+  if (rateBuckets.size > 5000) {
+    for (const [key, value] of rateBuckets) if (value.resetAt <= now) rateBuckets.delete(key);
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
