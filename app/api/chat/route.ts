@@ -7,7 +7,7 @@ const ALLOWED_ORIGIN = "https://agent.sparkagent.in.net";
 const encoder = new TextEncoder();
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function cors(headers: HeadersInit = {}) {
+function cors(headers: Record<string, string> = {}) {
   return {
     ...headers,
     "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
