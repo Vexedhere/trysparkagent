@@ -26,7 +26,7 @@ function jsonError(message: string, status: number, extra: Record<string, string
 function detectMode(messages: ChatMessage[], requestedMode: unknown): "coding" | "general" {
   if (requestedMode === "coding" || requestedMode === "general") return requestedMode;
   const last = [...messages].reverse().find((m) => m.role === "user")?.content || "";
-  return /\b(code|coding|program|programming|debug|bug|stack trace|typescript|javascript|python|java|rust|golang|sql|html|css|react|next\.js|node\.js|api|function|class|component|compile|compiler|refactor|repository|repo|github|pull request|unit test|test suite|terminal|command line|algorithm|database schema|supabase|deployment|deploy|error log)\b/i.test(last)
+  return /\\b(code|coding|program|programming|debug|bug|stack trace|typescript|javascript|python|java|rust|golang|sql|html|css|react|next\\.js|node\\.js|api|function|class|component|compile|compiler|refactor|repository|repo|github|pull request|unit test|test suite|terminal|command line|algorithm|database schema|supabase|deployment|deploy|error log|website|web app|webpage|frontend|backend|script|plugin|discord bot|minecraft plugin|landing page)\\b/i.test(last)
     ? "coding"
     : "general";
 }
